@@ -1,28 +1,47 @@
 import os
+from pathlib import Path
 import xml.dom.minidom 
 import xml.etree.ElementTree as Et
 
-def get_xml_path():
+def get_xml_root():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))  
-    return os.path.join(BASE_DIR, "..", "OhioT1DM", "2018", "test", "559-ws-testing.xml")
+    return os.path.join(BASE_DIR, "..", "OhioT1DM")
 
-domtree = xml.dom.minidom.parse(get_xml_path())
+def get_XMLs(root):
+    p = Path(root)
+    lista_XML = []
 
-patient = domtree.documentElement
-assert patient is not None
-print(f"--- Patient {patient.getAttribute('id')} ---")
+    for x in p.iterdir():
+        if x.is_dir() :
+            lista_XML.extend(get_XMLs(x))
+        elif x.suffix == ".xml": 
+            lista_XML.append(x)
 
-glucose_level = patient.getElementsByTagName('glucose_level')[0].getElementsByTagName('event')
+    return lista_XML
 
-parar = 0
+def get_info(file_XML):
+    domtree = xml.dom.minidom.parse(str(file_XML))
 
-print("-- Nivel de glicose --")
-for event in glucose_level:
+    patient = domtree.documentElement
+    assert patient is not None
 
-    print (f"tempo: {event.getAttribute('ts')} glicose: {event.getAttribute('value')}")
+    print(f"--- Patient {patient.getAttribute('id')} ---")
 
-    parar = parar + 1
-    if parar >= 4 :
-        parar = 0
-        break
+    parar = 0 #serve para os lupes não imundar o painel de comando, sera remorido depis
+
+    glucose_level = patient.getElementsByTagName('glucose_level')[0].getElementsByTagName('event')
+    print("-- Nivel de glicose --")
+
+    for event in glucose_level:
+        print (f"tempo: {event.getAttribute('ts')} glicose: {event.getAttribute('value')}")
+
+        parar = parar + 1
+        if parar >= 4 :
+            parar = 0
+            break
+
+lista_XML = get_XMLs(get_xml_root())
+
+for file in lista_XML:
+    get_info(file)
 
