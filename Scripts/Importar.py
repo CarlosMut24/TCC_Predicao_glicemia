@@ -42,7 +42,7 @@ def get_info(file_XML):
     print("-- Nivel de glicose --")
 
     for event in glucose_level:
-        ts = datetime.strptime(event.getAttribute('ts'), "%d-%m-%Y %H:%M:%S")
+        ts =  binning(event.getAttribute('ts'))
         print (f"tempo: {ts} glicose: {event.getAttribute('value')}")
 
         parar = parar + 1
@@ -54,13 +54,9 @@ def get_info(file_XML):
 
 def binning(ts): 
     data = datetime.strptime(ts, "%d-%m-%Y %H:%M:%S")
-
-
-data = datetime.strptime("18-01-2022 00:05:00", "%d-%m-%Y %H:%M:%S")
-mim = math.floor(data.minute/5)*5
-print(mim)
-print(data.replace(minute = mim))
-
+    mim = math.floor(data.minute/5)*5
+    return data.replace(minute = mim)
+    
 # lista_XML = get_XMLs(get_xml_root())
 
 # for file in lista_XML:
