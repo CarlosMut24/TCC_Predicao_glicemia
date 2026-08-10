@@ -58,12 +58,6 @@ def get_info(file_XML, dados: dict):
         dados[id_patient][ts]["metodo_medida"] = "CGM"
         dados[id_patient][ts]["glucose_level"] = int(event.getAttribute('value'))           
 
-    basal = patient.getElementsByTagName('basal')[0].getElementsByTagName('event')
-    for event in basal:
-        ts =  binning(event.getAttribute('ts'))
-        dados = new_entry(ts, dados, id_patient)
-        dados[id_patient][ts]["basal"] = float(event.getAttribute('value'))
-
     bolus = patient.getElementsByTagName('bolus')[0].getElementsByTagName('event')
     for event in bolus:
         ts =  binning(event.getAttribute('ts_begin'))
@@ -78,25 +72,42 @@ def get_info(file_XML, dados: dict):
         dados[id_patient][ts]["meal_type"] = event.getAttribute('type')
         dados[id_patient][ts]["meal_carbs"] = event.getAttribute('carbs')
 
+    basal = patient.getElementsByTagName('basal')[0].getElementsByTagName('event')
+    for event in basal:
+        ts =  binning(event.getAttribute('ts'))
+
+        for entry in dados[id_patient]:
+            if entry >= ts:
+                dados[id_patient][entry]["basal"] = float(event.getAttribute('value'))
+
+    temp_basal = patient.getElementsByTagName('temp_basal')[0].getElementsByTagName('event')
+    for event in temp_basal:
+        ts_begin =  binning(event.getAttribute('ts_begin'))
+        ts_end =  binning(event.getAttribute('ts_end'))
+
+        for entry in dados[id_patient]:
+            if entry >= ts_begin and entry <= ts_end:
+                dados[id_patient][entry]["basal"] = float(event.getAttribute('value'))
+
     sleep = patient.getElementsByTagName('sleep')[0].getElementsByTagName('event')
     for event in sleep:
         ts_begin =  binning(event.getAttribute('ts_begin'))
         ts_end =  binning(event.getAttribute('ts_end'))
-        dados = new_entry(ts_begin, dados, id_patient)
-        dados = new_entry(ts_end, dados, id_patient)
 
-        dados[id_patient][ts_begin]["sleep"] = 'comeso'
-        dados[id_patient][ts_begin]["sleep_quality"] = event.getAttribute('quality')
-
-        dados[id_patient][ts_end]["sleep"] = 'fim'
-        dados[id_patient][ts_end]["sleep_quality"] = event.getAttribute('quality')
+        for entry in dados[id_patient]:
+            if entry >= ts_begin and entry <= ts_end:
+                dados[id_patient][entry]["sleeping"] = True
+                dados[id_patient][entry]["sleep_quality"] = event.getAttribute('quality')
 
     exercise = patient.getElementsByTagName('exercise')[0].getElementsByTagName('event')
     for event in exercise:
-        ts =  binning(event.getAttribute('ts'))
-        dados = new_entry(ts, dados, id_patient)
-        dados[id_patient][ts]["exercise_intensity"] = event.getAttribute('intensity')
-        dados[id_patient][ts]["exercise_duration"] = event.getAttribute('duration')
+        ts_begin =  binning(event.getAttribute('ts'))
+        ts_end = ts_begin + timedelta(minutes= int(event.getAttribute('duration')))
+
+        for entry in dados[id_patient]:
+            if entry >= ts and entry <= ts_end:
+                dados[id_patient][entry]["doing_exercise"] = True
+                dados[id_patient][entry]["exercise_intensity"] = event.getAttribute('intensity')
 
     
     return dados
@@ -114,7 +125,8 @@ def new_entry(ts, dados: dict, id_patient):
                                  "sleeping": False,
                                  "sleep_quality": None,
                                  "exercise_intensity": None,
-                                 "doing_exercise": False}
+                                 "doing_exercise": False,
+                                 "id_patient": id_patient}
     return dados
 
 # aredonda o horario para o 5 muinutos enterior 
@@ -123,7 +135,6 @@ def binning(ts):
     i = 5
     mim = data.minute//i*i
     return data.replace(minute = mim, second = 0)
-    
     
 lista_XML = get_XMLs(get_xml_root())
 
