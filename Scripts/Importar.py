@@ -37,23 +37,24 @@ def get_info(file_XML, dados: dict):
     assert patient is not None
 
     id_patient = int(patient.getAttribute('id'))
+    
+    if id_patient not in dados.keys():
+        dados[id_patient] = {}
         
-
     parar = 0 #serve para os lupes não imundar o painel de comando, sera remorido depis
 
     glucose_level = patient.getElementsByTagName('glucose_level')[0].getElementsByTagName('event')
     finger_stick = patient.getElementsByTagName('finger_stick')[0].getElementsByTagName('event')
     basal = patient.getElementsByTagName('basal')[0].getElementsByTagName('event')
     bolus = patient.getElementsByTagName('bolus')[0].getElementsByTagName('event')
-    meal = patient.getElementsByTagName('meal')[0].getElementsByTagName('event')
+    meal = patient.getElementsByTagName('meal')[0].patientgetElementsByTagName('event')
     sleep = patient.getElementsByTagName('sleep')[0].getElementsByTagName('event')
     exercise = patient.getElementsByTagName('exercise')[0].getElementsByTagName('event')
 
 
     for event in finger_stick:
         ts =  binning(event.getAttribute('ts'))
-        dados[id_patient][ts] = {
-                                    "medidor": "paciente", 
+        dados[id_patient][ts] = {"medidor": "paciente", 
                                  "glucose_level": int(event.getAttribute('value')),
                                  "basal": None,
                                  "bolus": None,
@@ -190,6 +191,34 @@ def get_info(file_XML, dados: dict):
 
     
     return dados
+
+def entrada(parametro: str, valor: str, sub_parametro: str, ts_teg: str, dados: dict, patient):
+    parametro_events = patient.getElementsByTagName(parametro)[0].getElementsByTagName('event')
+    id_patient = int(patient.getAttribute('id'))
+
+    for event in parametro_events:
+        ts = binning(event.getAttribute(ts_teg))
+        
+        lope = True
+        while lope:
+            if dados[id_patient][ts] is None:
+                dados[id_patient][ts] = {
+                    "medidor": None, 
+                    "glucose_level": None,
+                    "basal": None,
+                    "bolus": None,
+                    "bolus_bwz_carb_input": None,
+                    "meal": None, 
+                    "carbs": None,
+                    "sleep": None,
+                    "sleep_quality": None,
+                    "exercise_intensity": None}
+            elif sub_parametro is not None:
+                dados[id_patient][ts][sub_parametro] = event.getAttribute(sub_parametro)
+            else:
+                dados[id_patient][ts][parametro] = event.getAttribute(valor)
+                lope = False
+
 
 def binning(ts): 
     data = datetime.strptime(ts, "%d-%m-%Y %H:%M:%S")
