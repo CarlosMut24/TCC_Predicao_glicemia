@@ -63,7 +63,6 @@ def get_info(file_XML, dados: dict):
         ts =  binning(event.getAttribute('ts_begin'))
         dados = new_entry(ts, dados, id_patient)
         dados[id_patient][ts]["bolus"] = event.getAttribute('dose')
-        dados[id_patient][ts]["bolus_bwz_carb_input"] = event.getAttribute('bwz_carb_input')
         
     meal = patient.getElementsByTagName('meal')[0].getElementsByTagName('event')
     for event in meal:
@@ -115,18 +114,18 @@ def get_info(file_XML, dados: dict):
 # cria uma nova entrada caso ela não existir
 def new_entry(ts, dados: dict, id_patient):
     if ts not in dados[id_patient].keys():
-        dados[id_patient][ts] = {"metodo_medida": None, 
+        dados[id_patient][ts] = {"id_patient": id_patient,
+                                 "ts": ts,
+                                 "metodo_medida": None, 
                                  "glucose_level": None,
                                  "basal": None,
                                  "bolus": None,
-                                 "bolus_bwz_carb_input": None,
                                  "meal_type": None, 
                                  "meal_carbs": None,
                                  "sleeping": False,
                                  "sleep_quality": None,
                                  "exercise_intensity": None,
-                                 "doing_exercise": False,
-                                 "id_patient": id_patient}
+                                 "doing_exercise": False}
     return dados
 
 # aredonda o horario para o 5 muinutos enterior 
@@ -138,17 +137,23 @@ def binning(ts):
     
 lista_XML = get_XMLs(get_xml_root())
 
-dados = {}
+para = 0
+dados_individual = {}
+dados_geral = []
 for file in lista_XML:
-    dados = get_info(file, dados)
+    # if para > 0:
+    #     break 
+    dados_individual = get_info(file, dados_individual)
+    # para +=1
 
-for pacientes in dados:
-    print(f"ID Paciente: {pacientes}")
-    for data in dados[pacientes]:
-        print(data)
 
-        for entrada in dados[pacientes][data]:
-            print(f"{entrada}: {dados[pacientes][data][entrada]}")
+for pacient in dados_individual:
+    for ts in dados_individual[pacient]:
+        dados_geral.append(dados_individual[pacient][ts])
+
+df_paciente = pd.DataFrame(dados_geral)
+# df_paciente = pd.DataFrame(dados_individual)
+print(df_paciente)
 
 
 
