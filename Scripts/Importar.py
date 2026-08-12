@@ -56,14 +56,29 @@ def get_info(file_XML, dados: dict):
         ts =  binning(event.getAttribute('ts'))
         dados = new_entry(ts, dados, id_patient)
         dados[id_patient][ts]["metodo_medida"] = "CGM"
-        dados[id_patient][ts]["glucose_level"] = int(event.getAttribute('value'))           
+        dados[id_patient][ts]["glucose_level"] = int(event.getAttribute('value'))
 
     bolus = patient.getElementsByTagName('bolus')[0].getElementsByTagName('event')
     for event in bolus:
-        ts =  binning(event.getAttribute('ts_begin'))
-        dados = new_entry(ts, dados, id_patient)
-        dados[id_patient][ts]["bolus"] = event.getAttribute('dose')
-        
+        ts_begin =  binning(event.getAttribute('ts_begin'))
+        ts_end =  binning(event.getAttribute('ts_end'))
+        ts_diferenca = (ts_end-ts_begin).total_seconds()
+
+        dados = new_entry(ts_begin, dados, id_patient)
+
+        dados[id_patient][ts_begin]["bolus_type"] = event.getAttribute('type')
+
+        if ts_diferenca == 0:
+            dados[id_patient][ts_begin]["bolus_dose"] = float(event.getAttribute('dose'))
+        else:
+            ts_between = int(ts_diferenca / 60 / 5)
+            dose = float(event.getAttribute('dose'))/ts_between
+
+            for i in range(0, ts_between+1):
+                ts = ts_begin + timedelta(minutes= 5*i)
+                dados = new_entry(ts, dados, id_patient)
+                dados[id_patient][ts]["bolus_dose"] = dose
+
     meal = patient.getElementsByTagName('meal')[0].getElementsByTagName('event')
     for event in meal:
         ts =  binning(event.getAttribute('ts'))
@@ -108,6 +123,11 @@ def get_info(file_XML, dados: dict):
                 dados[id_patient][entry]["doing_exercise"] = True
                 dados[id_patient][entry]["exercise_intensity"] = event.getAttribute('intensity')
 
+    for event in dados[id_patient]:
+        if dados[id_patient][event]["glucose_level"] is not None:
+            ts_target = event - timedelta(hours= 1)
+            if ts_target in dados[id_patient].keys():
+                dados[id_patient][ts_target]["target"] = dados[id_patient][event]["glucose_level"]
     
     return dados
 
@@ -119,13 +139,15 @@ def new_entry(ts, dados: dict, id_patient):
                                  "metodo_medida": None, 
                                  "glucose_level": None,
                                  "basal": None,
-                                 "bolus": None,
+                                 "bolus_type": None,
+                                 "bolus_dose": None,
                                  "meal_type": None, 
                                  "meal_carbs": None,
                                  "sleeping": False,
                                  "sleep_quality": None,
                                  "exercise_intensity": None,
-                                 "doing_exercise": False}
+                                 "doing_exercise": False,
+                                 "target": None}
     return dados
 
 # aredonda o horario para o 5 muinutos enterior 
