@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
+from sklearn.metrics import mean_absolute_error as MAE
 from sklearn import model_selection as ms
 from sklearn.linear_model import LinearRegression
 
@@ -61,12 +62,14 @@ resultD = pd.DataFrame({
     'miss': abs(Y_pred_dummies - Y_testD.to_numpy())
 })
 
-
 print(f"techa de erro sem dummies: {np.round(sum(result["miss"])/len(result["miss"]),2)}")
-print(f"techa de erro com dummies: {np.round(sum(resultD["miss"])/len(resultD["miss"]),2)}")
+print(f"techa de erro com dummies: {np.round(sum(resultD["miss"])/len(resultD["miss"]),2)}\n")
+
+print(f"MAE sem dummies: {MAE(result["Y_pred"], result["Y_test"])}")
+print(f"MAE com dummies: {MAE(resultD["Y_pred"], resultD["Y_test"])}\n")
 
 print(f"Menor techa de erro sem dummies: {np.round(min(result["miss"]),2)}")
-print(f"Menor techa de erro com dummies: {np.round(min(resultD["miss"]),2)}")
+print(f"Menor techa de erro com dummies: {np.round(min(resultD["miss"]),2)}\n")
 
 print(f"Maior techa de erro maxima sem dummies: {np.round(max(result["miss"]),2)}")
-print(f"Maior techa de erro maxima com dummies: {np.round(max(resultD["miss"]),2)}")
+print(f"Maior techa de erro maxima com dummies: {np.round(max(resultD["miss"]),2)}\n")
