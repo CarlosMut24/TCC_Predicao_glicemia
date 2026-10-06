@@ -23,17 +23,17 @@ def get_csv_root():
     return os.path.join(BASE_DIR, "..", "processado")
 
 # paga o caminho para os arquivos XML
-def get_XMLs(root):
+def get_XMLs(root, seletor: str):
     p = Path(root)
     lista_XML = []
 
     for x in p.iterdir():
         if x.is_dir() :
-            lista_XML.extend(get_XMLs(x))
-        # elif "testing" in x.name: 
-        #     continue
-        # elif "training" in x.name: 
-        #     continue
+            lista_XML.extend(get_XMLs(x, seletor))
+        elif "testing" in x.name and seletor == "training": 
+                    continue
+        elif "training" in x.name and seletor == "testing": 
+            continue
         elif x.suffix == ".xml": 
             lista_XML.append(x)
 
@@ -166,87 +166,106 @@ def binning(ts):
     i = 5
     mim = data.minute//i*i
     return data.replace(minute = mim, second = 0)
-    
-lista_XML = get_XMLs(get_xml_root())
 
-para = 0
-dados_individual = {}
-dados_geral = []
-for file in lista_XML:
-    # if para > 0:
-    #     break 
-    dados_individual = get_info(file, dados_individual)
-    # para +=1
+def filer(df_final):
+    for idx, event in df_final.iterrows():
+        if pd.isna(event["glucose_level"]):
+            back = 5
+            past_glucose = None
+            future_glucose = None
+            past_weight = None
+            future_weight = None
 
+            while ((past_glucose is None) or (future_glucose is None)) and (back <= 150):
+                ts_past_glucose = event["ts"] - timedelta(minutes= back)
+                ts_future_glucose = event["ts"] + timedelta(minutes= back)
 
-for pacient in dados_individual:
-    for ts in dados_individual[pacient]:
-        dados_geral.append(dados_individual[pacient][ts])
+                if (past_glucose is None):
+                    result_past = df_final.loc[
+                        (df_final["ts"] == ts_past_glucose) &
+                        (df_final["id_patient"] == event["id_patient"]) &
+                        (df_final["glucose_level"].notna()),
+                        ["glucose_level", "metodo_medida"]
+                    ]
+                    
+                    if not result_past.empty:
+                        past_glucose = result_past.iloc[0]
+                        past_weight = 1 / (back / 5)
 
-df_paciente = pd.DataFrame(dados_geral)
-df_paciente_individual = pd.DataFrame(dados_individual)
+                if (future_glucose is None):
+                    result_future = df_final.loc[
+                        (df_final["ts"] == ts_future_glucose) &
+                        (df_final["id_patient"] == event["id_patient"]) &
+                        (df_final["glucose_level"].notna()),
+                        ["glucose_level", "metodo_medida"]
+                    ]
+                    
+                    if not result_future.empty:
+                        future_glucose = result_future.iloc[0]
+                        future_weight = 1 / (back / 5)
 
-df_final = df_paciente.sort_values(by=["id_patient", "ts"]).reset_index(drop=True)
-
-for idx, event in df_final.iterrows():
-    if pd.isna(event["glucose_level"]):
-        back = 5
-        past_glucose = None
-        future_glucose = None
-        past_weight = None
-        future_weight = None
-
-        while ((past_glucose is None) or (future_glucose is None)) and (back <= 150):
-            ts_past_glucose = event["ts"] - timedelta(minutes= back)
-            ts_future_glucose = event["ts"] + timedelta(minutes= back)
-
-            if (past_glucose is None):
-                result_past = df_final.loc[
-                    (df_final["ts"] == ts_past_glucose) &
-                    (df_final["id_patient"] == event["id_patient"]) &
-                    (df_final["glucose_level"].notna()),
-                    ["glucose_level", "metodo_medida"]
-                ]
-                
-                if not result_past.empty:
-                    past_glucose = result_past.iloc[0]
-                    past_weight = 1 / (back / 5)
-
-            if (future_glucose is None):
-                result_future = df_final.loc[
-                    (df_final["ts"] == ts_future_glucose) &
-                    (df_final["id_patient"] == event["id_patient"]) &
-                    (df_final["glucose_level"].notna()),
-                    ["glucose_level", "metodo_medida"]
-                ]
-                
-                if not result_future.empty:
-                    future_glucose = result_future.iloc[0]
-                    future_weight = 1 / (back / 5)
-
-            if past_glucose is None or future_glucose is None:
-                back += 5
-        
-        if past_glucose is not None and future_glucose is not None:
-            assert past_weight is not None
-            assert future_weight is not None
-
-            glucose_level = (
-                past_glucose["glucose_level"] * past_weight +
-                future_glucose["glucose_level"] * future_weight
-            ) / (past_weight + future_weight)
-
-            df_final.loc[idx, "glucose_level"] = glucose_level
-            df_final.loc[idx, "metodo_medida"] = "interpolado"
-
-        elif (past_glucose is not None):
-            df_final.loc[idx, "glucose_level"] = past_glucose["glucose_level"]
-            df_final.loc[idx, "metodo_medida"] = past_glucose["metodo_medida"]
+                if past_glucose is None or future_glucose is None:
+                    back += 5
             
-        elif (future_glucose is not None):
-            df_final.loc[idx, "glucose_level"] = future_glucose["glucose_level"]
-            df_final.loc[idx, "metodo_medida"] = future_glucose["metodo_medida"]
+            if past_glucose is not None and future_glucose is not None:
+                assert past_weight is not None
+                assert future_weight is not None
+
+                glucose_level = (
+                    past_glucose["glucose_level"] * past_weight +
+                    future_glucose["glucose_level"] * future_weight
+                ) / (past_weight + future_weight)
+
+                df_final.loc[idx, "glucose_level"] = glucose_level
+                df_final.loc[idx, "metodo_medida"] = "interpolado"
+
+            elif (past_glucose is not None):
+                df_final.loc[idx, "glucose_level"] = past_glucose["glucose_level"]
+                df_final.loc[idx, "metodo_medida"] = past_glucose["metodo_medida"]
+                
+            elif (future_glucose is not None):
+                df_final.loc[idx, "glucose_level"] = future_glucose["glucose_level"]
+                df_final.loc[idx, "metodo_medida"] = future_glucose["metodo_medida"]
+
+    return df_final
+
+lista_XML_training = get_XMLs(get_xml_root(), "training")
+lista_XML_testing = get_XMLs(get_xml_root(), "testing")
+
+dados_treinamento = []
+for file in lista_XML_training:
+    dados = {}
+    dados = get_info(file, dados)
+
+    for pacient in dados:
+        for ts in dados[pacient]:
+            dados_treinamento.append(dados[pacient][ts])
+
+dados_testes = []
+for file in lista_XML_testing:
+
+    dados = {}
+    dados = get_info(file, dados)
+
+    for pacient in dados:
+        for ts in dados[pacient]:
+            dados_testes.append(dados[pacient][ts])
+
+# dados_geral = []
+# for pacient in dados_testes:
+#     for ts in dados_testes[pacient]:
+#         dados_geral.append(dados_testes[pacient][ts])
+# df_paciente = pd.DataFrame(dados_geral)
+
+df_treinamento = pd.DataFrame(dados_treinamento)
+df_testes = pd.DataFrame(dados_testes)
+
+df_treinamento_final = df_treinamento.sort_values(by=["id_patient", "ts"]).reset_index(drop=True)
+df_testes_final = df_testes.sort_values(by=["id_patient", "ts"]).reset_index(drop=True)
+
+df_treinamento_final = filer(df_treinamento_final)
+df_testes_final = filer(df_testes_final)
 
 processado_path = get_csv_root()
-df_paciente.to_csv(os.path.join(processado_path, "paciente.cvs"), index=False, encoding='utf-8')
-df_final.to_csv(os.path.join(processado_path, "final.cvs"), index=False, encoding='utf-8')
+df_treinamento_final.to_csv(os.path.join(processado_path, "treinamento_final.cvs"), index=False, encoding='utf-8')
+df_testes_final.to_csv(os.path.join(processado_path, "testes_final.cvs"), index=False, encoding='utf-8')
