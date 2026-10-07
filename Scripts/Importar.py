@@ -267,5 +267,5 @@ df_treinamento_final = filer(df_treinamento_final)
 df_testes_final = filer(df_testes_final)
 
 processado_path = get_csv_root()
-df_treinamento_final.to_csv(os.path.join(processado_path, "treinamento_final.cvs"), index=False, encoding='utf-8')
-df_testes_final.to_csv(os.path.join(processado_path, "testes_final.cvs"), index=False, encoding='utf-8')
+df_treinamento_final.to_csv(os.path.join(processado_path, "treinamento_final.csv"), index=False, encoding='utf-8')
+df_testes_final.to_csv(os.path.join(processado_path, "testes_final.csv"), index=False, encoding='utf-8')
