@@ -1,2 +1,4 @@
 OhioT1DM/
+modelos/modelo_rf.joblib
 Scripts/559-ws-testing.xml
+.venv/
