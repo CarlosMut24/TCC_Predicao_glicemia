@@ -12,7 +12,7 @@ import os
 # modelo = joblib.load(os.path.join(BASE_DIR, "modelo_rf.joblib"))
 
 modelo_path = hf_hub_download(
-    repo_id="SEU_USUARIO/meu-modelo-glicose",
+    repo_id="CarlosMUT/TCC_Glicemia_RF",
     filename="modelo_rf.joblib",
 )
 modelo = joblib.load(modelo_path)
