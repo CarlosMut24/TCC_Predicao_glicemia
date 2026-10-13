@@ -4,12 +4,20 @@ import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from huggingface_hub import hf_hub_download
+import os
 
 # carrega o pipeline salvo
-modelo = joblib.load("modelo_rf.joblib")
+# BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# modelo = joblib.load(os.path.join(BASE_DIR, "modelo_rf.joblib"))
+
+modelo_path = hf_hub_download(
+    repo_id="SEU_USUARIO/meu-modelo-glicose",
+    filename="modelo_rf.joblib",
+)
+modelo = joblib.load(modelo_path)
 
 app = FastAPI(title="Glicose Predictor API")
-
 
 class PacienteInput(BaseModel):
     metodo_medida: str
