@@ -1,4 +1,6 @@
 OhioT1DM/
 *.joblib
+*.keras
+*.pkl
 Scripts/559-ws-testing.xml
 .venv/

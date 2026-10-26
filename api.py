@@ -35,118 +35,115 @@ def adicionar_features_temporais(df):
 
     return df
 
-FEATURES = [
-    "glucose_level",
-    "glucose_delta_5",
-    "glucose_delta_15",
-    "glucose_delta_30",
-    "glucose_ma_15",
-    "glucose_ma_30",
-    "glucose_std_30",
-    "hora_sin",
-    "hora_cos",
-    "dia_sin",
-    "dia_cos",
-    "fim_de_semana",
-    "madrugada",
-    "pos_cafe",
-    "pos_almoco",
-    "pos_jantar",
-    "meal_carbs",
-    "bolus_dose",
-    "basal",
-    "iob", 
-    "cob"]
+# FEATURES = [
+#     "glucose_level",
+#     "glucose_delta_5",
+#     "glucose_delta_15",
+#     "glucose_delta_30",
+#     "glucose_ma_15",
+#     "glucose_ma_30",
+#     "glucose_std_30",
+#     "hora_sin",
+#     "hora_cos",
+#     "dia_sin",
+#     "dia_cos",
+#     "fim_de_semana",
+#     "madrugada",
+#     "pos_cafe",
+#     "pos_almoco",
+#     "pos_jantar",
+#     "meal_carbs",
+#     "bolus_dose",
+#     "basal",
+#     "iob", 
+#     "cob"]
 
 modelo_path = hf_hub_download(
     repo_id="CarlosMUT/TCC_Glicemia_RF",
-    filename="modelo_lstm.keras",
+    filename="modelo_rf.keras",
 )
-scaler_path = hf_hub_download(
-    repo_id="CarlosMUT/TCC_Glicemia_RF",
-    filename="scaler_lstm.pkl",
-)
+# scaler_path = hf_hub_download(
+#     repo_id="CarlosMUT/TCC_Glicemia_RF",
+#     filename="scaler_lstm.pkl",
+# )
 modelo = joblib.load(modelo_path)
-scaler = joblib.load(scaler_path)
+# scaler = joblib.load(scaler_path)
 
 app = FastAPI(title="Glicose Predictor API")
 
 class PacienteInput(BaseModel):
+    metodo_medida: str
     glucose_level: float
-    glucose_delta_5: float
-    glucose_delta_15: float
-    glucose_delta_30: float
-    glucose_ma_15: float
-    glucose_ma_30: float
-    glucose_std_30: float
-    ts: str
     basal: float
+    bolus_type: str
     bolus_dose: float
+    meal_type: Optional[str] = None
     meal_carbs: float
-
+    exercise_intensity: float
+    doing_exercise: int
 
 @app.get("/")
 def root():
     return {"status": "ok", "modelo": "random_forest_glicose"}
 
-@app.post("/predict_lstm")
-def predict_lstm(dados: PacienteInput):
-    # 1. Monta o DataFrame bruto com o histórico
-    df = pd.DataFrame(dados.historico)  # lista de dicts com ts, glucose_level, etc.
+# @app.post("/predict_lstm")
+# def predict_lstm(dados: PacienteInput):
+#     # 1. Monta o DataFrame bruto com o histórico
+#     df = pd.DataFrame(dados.historico)  # lista de dicts com ts, glucose_level, etc.
     
-    # 2. Transforma ts em features
-    df = adicionar_features_temporais(df)
+#     # 2. Transforma ts em features
+#     df = adicionar_features_temporais(df)
     
-    # 3. Pega a última janela de WINDOW_SIZE (24)
-    # (aqui você isola a linha atual e as 23 anteriores)
-    features_array = df[FEATURES].values[-24:]
+#     # 3. Pega a última janela de WINDOW_SIZE (24)
+#     # (aqui você isola a linha atual e as 23 anteriores)
+#     features_array = df[FEATURES].values[-24:]
     
-    # 4. Normaliza com o scaler salvo
-    X = scaler.transform(features_array.reshape(-1, len(FEATURES))).reshape(1, 24, len(FEATURES))
+#     # 4. Normaliza com o scaler salvo
+#     X = scaler.transform(features_array.reshape(-1, len(FEATURES))).reshape(1, 24, len(FEATURES))
     
-    # 5. Prediz
-    pred = modelo.predict(X)[0][0]
+#     # 5. Prediz
+#     pred = modelo.predict(X)[0][0]
     
-    return {"glicose_prevista_30min": float(pred)}
+#     return {"glicose_prevista_30min": float(pred)}
 
 
-# @app.post("/predict")
-# def predict(dados: PacienteInput):
-#     try:
-#         # montar DataFrame com uma linha
-#         linha = dados.dict()
+@app.post("/predict")
+def predict(dados: PacienteInput):
+    try:
+        # montar DataFrame com uma linha
+        linha = dados.dict()
 
-#         # aplicar a regra de negócio (igual ao treino)
-#         if linha["meal_carbs"] == 0:
-#             linha["meal_type"] = "Fasting"
-#         if linha["meal_type"] is None:
-#             linha["meal_type"] = "Fasting"  # fallback
+        # aplicar a regra de negócio (igual ao treino)
+        if linha["meal_carbs"] == 0:
+            linha["meal_type"] = "Fasting"
+        if linha["meal_type"] is None:
+            linha["meal_type"] = "Fasting"  # fallback
 
-#         df = pd.DataFrame([linha])
+        df = pd.DataFrame([linha])
 
-#         # prever
-#         pred = modelo.predict(df)[0]
+        # prever
+        pred = modelo.predict(df)[0]
 
-#         return {
-#             "glicose_prevista_30min": float(pred),
-#             "unidade": "mg/dL",
-#         }
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "glicose_prevista_30min": float(pred),
+            "unidade": "mg/dL",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.post("/predict_batch")
-# def predict_batch(dados: list[PacienteInput]):
-#     linhas = []
-#     for d in dados:
-#         linha = d.dict()
-#         if linha["meal_carbs"] == 0:
-#             linha["meal_type"] = "Fasting"
-#         if linha["meal_type"] is None:
-#             linha["meal_type"] = "Fasting"
-#         linhas.append(linha)
+@app.post("/predict_batch")
+def predict_batch(dados: list[PacienteInput]):
+    linhas = []
+    for d in dados:
+        linha = d.dict()
+        if linha["meal_carbs"] == 0:
+            linha["meal_type"] = "Fasting"
+        if linha["meal_type"] is None:
+            linha["meal_type"] = "Fasting"
+        linhas.append(linha)
 
-#     df = pd.DataFrame(linhas)
-#     preds = modelo.predict(df)
-#     return {"predicoes": [float(p) for p in preds]}
+    df = pd.DataFrame(linhas)
+    preds = modelo.predict(df)
+    return {"predicoes": [float(p) for p in preds]}
 
