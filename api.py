@@ -12,9 +12,9 @@ import os
 # modelo = joblib.load(os.path.join(BASE_DIR, "modelo_rf.joblib"))
 
 def adicionar_features_temporais(df):
-    """Transforma 'ts' em features numéricas cíclicas e flags."""
+    """Transforma 'timestamp' em features numéricas cíclicas e flags."""
     df = df.copy()
-    dt = pd.to_datetime(df["ts"])
+    dt = pd.to_datetime(df["timestamp"])
 
     # Hora do dia (cíclica)
     h = dt.dt.hour + dt.dt.minute / 60
@@ -60,27 +60,29 @@ def adicionar_features_temporais(df):
 
 modelo_path = hf_hub_download(
     repo_id="CarlosMUT/TCC_Glicemia_RF",
-    filename="modelo_rf.keras",
+    filename="modelo_rf_app.joblib",
 )
-# scaler_path = hf_hub_download(
-#     repo_id="CarlosMUT/TCC_Glicemia_RF",
-#     filename="scaler_lstm.pkl",
-# )
+
 modelo = joblib.load(modelo_path)
-# scaler = joblib.load(scaler_path)
 
 app = FastAPI(title="Glicose Predictor API")
 
 class PacienteInput(BaseModel):
-    metodo_medida: str
     glucose_level: float
-    basal: float
-    bolus_type: str
-    bolus_dose: float
+    metodo_medida: str
+    timestamp: str
     meal_type: Optional[str] = None
     meal_carbs: float
-    exercise_intensity: float
+    bolus_type: str
+    bolus_dose: float
+    basal: float
     doing_exercise: int
+    exercise_intensity: float
+    tempo_desde_ultima_medicao: float
+    glucose_delta_desde_ultima: float
+    iob: float
+    cob: float
+    is_cgm: int
 
 @app.get("/")
 def root():
@@ -121,11 +123,13 @@ def predict(dados: PacienteInput):
 
         df = pd.DataFrame([linha])
 
+        adicionar_features_temporais(df)
+
         # prever
         pred = modelo.predict(df)[0]
 
         return {
-            "glicose_prevista_30min": float(pred),
+            "glicose_prevista_2h": float(pred),
             "unidade": "mg/dL",
         }
     except Exception as e:
