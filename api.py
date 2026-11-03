@@ -38,6 +38,51 @@ class FeaturesTemporais(BaseEstimator, TransformerMixin):
         X = X.drop(columns=[self.coluna_timestamp])
         return X
 
+def traduzir_fator(feature, valor, impacto):
+    """Traduz nome técnico em frase amigável."""
+    mapa = {
+        "cob":        f"Você ainda tem {valor:.0f}g de carboidrato sendo absorvido",
+        "iob":        f"Você tem {valor:.1f}U de insulina ativa",
+        "meal_carbs": f"Você registrou uma refeição de {valor:.0f}g",
+        "bolus_dose": f"Você tomou {valor:.1f}U de insulina",
+        "hora_cos":   "O horário do dia",
+        "hora_sin":   "O horário do dia",
+        "glucose_level": f"Sua glicose atual é {valor:.0f}",
+        "glucose_delta_desde_ultima": f"Sua glicose mudou {valor:+.0f} desde a última medição",
+        "madrugada":  "É de madrugada (a glicose sobe naturalmente)",
+        "pos_cafe":   "É período pós-café da manhã",
+    }
+
+    if feature not in mapa:
+        return None
+
+    texto = mapa[feature]
+    if impacto > 5:
+        return f"{texto} → isso empurra sua glicose pra cima (+{impacto:.0f} mg/dL)"
+    elif impacto < -5:
+        return f"{texto} → isso ajuda a baixar sua glicose ({impacto:.0f} mg/dL)"
+    else:
+        return f"{texto} (impacto pequeno)"
+
+
+def gerar_explicacao_humana(resultado):
+    """Converte o JSON SHAP em mensagem pro usuário."""
+    linhas = []
+
+    for fator in resultado["principais_fatores"]:
+        linha = traduzir_fator(
+            fator["feature"],
+            fator["valor"],
+            fator["impacto_mgdl"],
+        )
+        if linha:
+            linhas.append(linha)
+
+    return {
+        "predicao": f"Sua glicose estimada em 2h é {resultado['predicao_mgdl']:.0f} mg/dL",
+        "explicacao": linhas,
+    }    
+
 
 # ============================================================
 # 2. Carregar modelo e criar o explicador SHAP
