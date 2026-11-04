@@ -3,6 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import shap
+import sys
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -37,6 +38,8 @@ class FeaturesTemporais(BaseEstimator, TransformerMixin):
         X["pos_jantar"] = dt.dt.hour.between(19, 22).astype(int)
         X = X.drop(columns=[self.coluna_timestamp])
         return X
+    
+    
 
 def traduzir_fator(feature, valor, impacto):
     """Traduz nome técnico em frase amigável."""
@@ -91,6 +94,8 @@ modelo_path = hf_hub_download(
     repo_id="CarlosMUT/TCC_Glicemia_RF",
     filename="modelo_rf_app.joblib",
 )
+sys.modules['FeaturesTemporais'] = sys.modules[__name__]
+
 modelo = joblib.load(modelo_path)
 
 # Extrair o RF de dentro do pipeline e criar o explicador
